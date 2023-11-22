@@ -1,0 +1,86 @@
+---
+title: "ARIMA hw6"
+author: "min cheng"
+date: "11/21/2022"
+output: html_document
+---
+
+```{r}
+library(readxl)
+library(fpp)
+library(fpp2)
+library(forecast)
+
+data <- read_excel("C:/Users/mchen/OneDrive/Desktop/2023fall syllasbus/Forecasting/homework/w3 2nd/Sample - Superstore.xls")
+str(data)
+
+datatimeseries <- ts(data$Sales, start=c(2014, 1), frequency=12)
+
+
+plot(datatimeseries, xlab="Time", ylab="Sales", las=1, type="o")
+```
+**Insight:Significant dips in 2014-2015 and 2016-2017, with quick rebounds, could signal potential errors or outliers.**
+
+```{r}
+ndiffs(datatimeseries)
+tsdisplay(datatimeseries)
+datatimeseriesdiff1 <- diff(datatimeseries, differences=1)
+plot(datatimeseriesdiff1)
+```
+**Insight:datatimeseries PLOT displayed increase/decrease trend, indicates its not stationary.  The ACF plot's declining correlation implies a non-stationary process, typically remedied by differencing. The PACF plot's sharp cut-off aids in determining the ARIMA model's autoregressive order.**
+
+#Differencing is a common technique in time series analysis used to transform a non-stationary time series into a stationary one. A stationary time series is characterized by statistical properties such as mean and variance that do not change over time. Often, non-stationary series can be made stationary through differencing, which makes them more suitable for modeling and forecasting.
+
+#差分是时间序列分析中的一个常用技术，目的是将非平稳的时间序列转换为平稳序列。
+#平稳序列的主要特征是其统计特性（如均值、方差）不随时间变化。在许多情况下，非平稳序列可以通过差分变换成平稳序列，从而更适合于建模和预测。一阶差分的计算方法是取当前时间点的观测值与前一个时间点的观测值之间的差The formula for the first order differencing is:
+
+![This is an image](66.png)
+
+#对于偏自相关函数（PACF），它会考虑到其他滞后值的影响，并尝试去除这些中间值的影响，来找到序列中一个值与另一个滞后值之间的纯粹关系。
+
+![This is an image](77.png)
+
+
+#3.Perform and Plot the forecast for the next five periods
+```{r}
+tsdisplay(datatimeseriesdiff1)
+
+str(datatimeseries)
+
+# Fit an ARIMA model to the 'Sales' time series
+auto_fit <- auto.arima(datatimeseries, trace=TRUE, stepwise = FALSE)
+
+
+auto_fit
+attributes(auto_fit)
+forecast<-(forecast(auto_fit,h=5,level=c(99.5)))
+
+forecast
+plot(forecast)
+
+
+```
+**Insight:the resulting plot looks more like a fluctuation around a constant mean without a trend, then the differencing process has helped in stabilizing the mean of the series by removing the trend,the differencing was successful.ACF and PACF show that most of the autocorrelations at various lags are not significant(each bar black, has not exceed the blue dotted line significance boundary, indicates ), suggesting that the time series may not exhibit strong autocorrelation.**
+
+**The auto.arima function has determined that the best model for your time series data is an ARIMA(1,0,0) with a non-zero mean. This model is a first-order autoregressive model, meaning it uses one lag of the time series itself to predict future values.                                                                                     #Arima(1,0,0)forecast, the next 5 years sales will going down** 
+
+**Question: the datatimeseriesdiff1 shows that differencing stablize the series,compared with line graph datatime series line graph, but the acf &pacf in this step indicates not strong autocorrelation , it means the differnecing was successful or not?
+
+
+#2.Residual Analysis
+```{r}
+Acf(auto_fit$residuals)
+Box.test(residuals(auto_fit), lag=20, type="Ljung")
+plot.ts(residuals(auto_fit))
+hist(auto_fit$residuals)
+tsdiag(auto_fit)
+```
+**Insight:ACF: acf not significant.                                                                                                                                               Box-Ljung test:P value very high, reject the null hypothesis, no statistical evidence of autocorrelation in the residuals of your ARIMA(1,0,0) model, an indicator that the model has captured the data's autocorrelation structure adequately, and the residuals are random, as one would expect from a good fitting model.                                        residuals(auto_fit plot: there large spikes in the trend indicates outliers/errors. but overall  the residuals do not show a clear trend over time, which is consistent with a well-fitting time series model.                                                                                                                                                  The histogram suggests that the residuals of the auto_fit model are unbiased and evenly distributed around zero, indicating a good model fit.**
+
+
+4.Show the accuracy of your ARIMA model
+```{r}
+accuracy(auto_fit)
+```
+**MAPE of 43.31% suggests that, on average, the model's forecasts have a 43.31% absolute percentage error. **
+
